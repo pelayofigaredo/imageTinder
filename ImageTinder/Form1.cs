@@ -1,0 +1,143 @@
+using System.Drawing.Imaging;
+using System.Text;
+
+namespace ImageTinder
+{
+    public partial class Form1 : Form
+    {
+        List<string> images = new List<string>();
+        int currentImageIndex = 0;
+
+        string folderAPath;
+        string folderBPath;
+
+        bool folderASelected = false;
+        bool folderBSelected = false;
+
+        bool setNameFromMetadata = false;
+
+        public Form1()
+        {
+            InitializeComponent();
+
+            //Liste for arrow keys
+        }
+
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.Left)
+            {
+                LeftArrow();
+                return true;
+            }
+            if (keyData == Keys.Right)
+            {
+                RightArrow();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        void LeftArrow()
+        {
+            if (!folderASelected || !folderBSelected)
+                return; 
+
+            SetImageIndex(currentImageIndex + 1);
+        }
+
+        void RightArrow()
+        {
+            if (!folderASelected || !folderBSelected)
+                return;
+
+            CopyImage(images[currentImageIndex]);
+            SetImageIndex(currentImageIndex + 1);
+        }
+
+        void CopyImage(string source)
+        {
+            string fileName = Path.GetFileName(source);
+            string dest = "";
+            if(!setNameFromMetadata)
+                dest = Path.Combine(folderBPath, fileName);
+            else
+            {
+                //Get the date taken from the image
+                string dateTaken = GetDateTakenFromImage(source);
+                if (dateTaken != null)
+                {
+                    dest = Path.Combine(folderBPath, dateTaken + "_" + fileName);
+                }
+                else
+                {
+                    dest = Path.Combine(folderBPath, fileName);
+                }
+            }
+            File.Copy(source, dest);
+        }
+
+        private string GetDateTakenFromImage(string source)
+        {
+            using (FileStream fs = new FileStream(source, FileMode.Open, FileAccess.Read))
+            using (Image myImage = Image.FromStream(fs, false, false))
+            {
+                PropertyItem propItem = myImage.GetPropertyItem(36867);
+                string dateTaken = Encoding.UTF8.GetString(propItem.Value);
+                return dateTaken;
+            }
+        }
+
+        private void folderAbtn_Click(object sender, EventArgs e)
+        {
+            // Show the FolderBrowserDialog.
+            DialogResult result = folderDialogA.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                folderAPath = folderDialogA.SelectedPath;
+                folderALabel.Text = folderAPath;
+                folderASelected = true;
+                          //Get all the images in the folder
+                images = Directory.GetFiles(folderAPath, "*.jpg").ToList();
+                images.AddRange(Directory.GetFiles(folderAPath, "*.jpeg").ToList());
+                images.AddRange(Directory.GetFiles(folderAPath, "*.png").ToList());
+                images.AddRange(Directory.GetFiles(folderAPath, "*.gif").ToList());
+                images.AddRange(Directory.GetFiles(folderAPath, "*.bmp").ToList());
+                images.AddRange(Directory.GetFiles(folderAPath, "*.tif").ToList());
+                if (images.Count > 0)
+                {
+                    SetImageIndex(0);
+                }
+            }
+        }
+
+
+        private void folderBbtn_Click(object sender, EventArgs e)
+        {
+            // Show the FolderBrowserDialog.
+            DialogResult result = folderDialogB.ShowDialog();
+            if (result == DialogResult.OK)
+            {
+                folderBPath = folderDialogB.SelectedPath;
+                folderBLabel.Text = folderBPath;
+                folderBSelected = true;
+            }
+        }
+
+        void SetImageIndex(int index)
+        {
+            currentImageIndex = index;
+            if (currentImageIndex < 0)
+            {
+                currentImageIndex = images.Count - 1;
+            }
+            if (currentImageIndex >= images.Count)
+            {
+                currentImageIndex = 0;
+            }
+            pictureBox.ImageLocation = images[currentImageIndex];
+        }
+
+    }
+}

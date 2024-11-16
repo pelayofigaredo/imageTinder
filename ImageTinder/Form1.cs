@@ -1,3 +1,6 @@
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
+using System.Collections.Generic;
 using System.Drawing.Imaging;
 using System.Text;
 
@@ -14,7 +17,7 @@ namespace ImageTinder
         bool folderASelected = false;
         bool folderBSelected = false;
 
-        bool setNameFromMetadata = false;
+        bool setNameFromMetadata = true;
 
         public Form1()
         {
@@ -65,7 +68,7 @@ namespace ImageTinder
             else
             {
                 //Get the date taken from the image
-                string dateTaken = GetDateTakenFromImage(source);
+                string dateTaken = ""; GetDateTakenFromImage(source);
                 if (dateTaken != null)
                 {
                     dest = Path.Combine(folderBPath, dateTaken + "_" + fileName);
@@ -78,15 +81,16 @@ namespace ImageTinder
             File.Copy(source, dest);
         }
 
-        private string GetDateTakenFromImage(string source)
+        private void GetDateTakenFromImage(string source)
         {
-            using (FileStream fs = new FileStream(source, FileMode.Open, FileAccess.Read))
-            using (Image myImage = Image.FromStream(fs, false, false))
-            {
-                PropertyItem propItem = myImage.GetPropertyItem(36867);
-                string dateTaken = Encoding.UTF8.GetString(propItem.Value);
-                return dateTaken;
-            }
+            var directories = ImageMetadataReader.ReadMetadata(source);
+            foreach (var directory in directories)
+                foreach (var tag in directory.Tags)
+                    Console.WriteLine($"{directory.Name} - {tag.Name} = {tag.Description}");
+
+            var subIfdDirectory = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+            var dateTime = subIfdDirectory?.GetDescription(ExifDirectoryBase.TagDateTime);
+            Console.WriteLine(dateTime);
         }
 
         private void folderAbtn_Click(object sender, EventArgs e)
@@ -99,12 +103,12 @@ namespace ImageTinder
                 folderALabel.Text = folderAPath;
                 folderASelected = true;
                           //Get all the images in the folder
-                images = Directory.GetFiles(folderAPath, "*.jpg").ToList();
-                images.AddRange(Directory.GetFiles(folderAPath, "*.jpeg").ToList());
-                images.AddRange(Directory.GetFiles(folderAPath, "*.png").ToList());
-                images.AddRange(Directory.GetFiles(folderAPath, "*.gif").ToList());
-                images.AddRange(Directory.GetFiles(folderAPath, "*.bmp").ToList());
-                images.AddRange(Directory.GetFiles(folderAPath, "*.tif").ToList());
+                images = System.IO.Directory.GetFiles(folderAPath, "*.jpg").ToList();
+                images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.jpeg").ToList());
+                images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.png").ToList());
+                images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.gif").ToList());
+                images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.bmp").ToList());
+                images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.tif").ToList());
                 if (images.Count > 0)
                 {
                     SetImageIndex(0);

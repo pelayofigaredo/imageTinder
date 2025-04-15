@@ -19,6 +19,8 @@ namespace ImageTinder
 
         bool setNameFromMetadata = true;
 
+        bool[] markedForDeletion;
+
         public Form1()
         {
             InitializeComponent();
@@ -26,6 +28,40 @@ namespace ImageTinder
             //Liste for arrow keys
         }
 
+        static bool DeleteImage(string source)
+        {
+            try
+            {
+                File.Delete(source);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error deleting file: " + ex.Message);
+                return false;
+            }
+        }
+
+        void DeleteMarkedImages()
+        {
+            List<string> imagesNEW = new List<string>();
+            if (folderASelected && folderBSelected)
+            {
+                for (int i = 0; i < markedForDeletion.Length; i++)
+                {
+                    if (markedForDeletion[i])
+                    {
+                        DeleteImage(images[i]);
+                    }
+                    else
+                    {
+                        imagesNEW.Add(images[i]);
+                    }
+                }
+                
+            }
+            SetImages(imagesNEW);
+        }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
@@ -45,8 +81,9 @@ namespace ImageTinder
         void LeftArrow()
         {
             if (!folderASelected || !folderBSelected)
-                return; 
+                return;
 
+            markedForDeletion[currentImageIndex] = true;
             SetImageIndex(currentImageIndex + 1);
         }
 
@@ -103,6 +140,8 @@ namespace ImageTinder
                 folderALabel.Text = folderAPath;
                 folderASelected = true;
                           //Get all the images in the folder
+
+                List<string> paths = new List<string>();
                 images = System.IO.Directory.GetFiles(folderAPath, "*.jpg").ToList();
                 images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.jpeg").ToList());
                 images.AddRange(System.IO.Directory.GetFiles(folderAPath, "*.png").ToList());
@@ -113,6 +152,18 @@ namespace ImageTinder
                 {
                     SetImageIndex(0);
                 }
+                SetImages(paths);
+            }
+        }
+
+        void SetImages(List<string> images)
+        {
+            this.images = images;
+            markedForDeletion = new bool[images.Count];
+            currentImageIndex = 0;
+            if (images.Count > 0)
+            {
+                SetImageIndex(0);
             }
         }
 
@@ -131,15 +182,28 @@ namespace ImageTinder
 
         void SetImageIndex(int index)
         {
+            bool increasing = index > currentImageIndex;
             currentImageIndex = index;
             if (currentImageIndex < 0)
             {
                 currentImageIndex = images.Count - 1;
+                if(markedForDeletion[currentImageIndex])
+                {
+                    SetImageIndex( currentImageIndex-1);
+                    return;
+                }
             }
+
             if (currentImageIndex >= images.Count)
             {
                 currentImageIndex = 0;
+                if (markedForDeletion[currentImageIndex])
+                {
+                    SetImageIndex(currentImageIndex + 1);
+                    return;
+                }
             }
+
             pictureBox.ImageLocation = images[currentImageIndex];
         }
 

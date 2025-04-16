@@ -31,15 +31,14 @@
             folderDialogA = new FolderBrowserDialog();
             folderDialogB = new FolderBrowserDialog();
             mainPanel = new Panel();
+            imagePanel = new Panel();
             folderAbtn = new Button();
             folderBbtn = new Button();
-            pictureBox = new PictureBox();
             folderALabel = new Label();
             folderBLabel = new Label();
             controlPanel = new Panel();
             folderAPanel = new SplitContainer();
             mainPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
             controlPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)folderAPanel).BeginInit();
             folderAPanel.SuspendLayout();
@@ -48,9 +47,9 @@
             // mainPanel
             // 
             mainPanel.AutoSize = true;
+            mainPanel.Controls.Add(imagePanel);
             mainPanel.Controls.Add(folderAbtn);
             mainPanel.Controls.Add(folderBbtn);
-            mainPanel.Controls.Add(pictureBox);
             mainPanel.Controls.Add(folderALabel);
             mainPanel.Controls.Add(folderBLabel);
             mainPanel.Controls.Add(controlPanel);
@@ -60,6 +59,23 @@
             mainPanel.Padding = new Padding(4);
             mainPanel.Size = new Size(1136, 753);
             mainPanel.TabIndex = 0;
+            // 
+            // imagePanel
+            // 
+            imagePanel.Location = new Point(4, 109);
+            imagePanel.Name = "imagePanel";
+            imagePanel.Size = new Size(1128, 640);
+            imagePanel.TabIndex = 5;
+
+            // Habilitar DoubleBuffered para evitar parpadeos
+            typeof(Panel).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(imagePanel, true, null);
+
+            // Asignar eventos
+            imagePanel.Paint += ImagePanel_Paint;
+            imagePanel.MouseWheel += ImagePanel_MouseWheel;
+            imagePanel.MouseDown += ImagePanel_MouseDown;
+            imagePanel.MouseMove += ImagePanel_MouseMove;
             // 
             // folderAbtn
             // 
@@ -82,15 +98,6 @@
             folderBbtn.Text = "Carpeta de destino";
             folderBbtn.UseVisualStyleBackColor = true;
             folderBbtn.Click += folderBbtn_Click;
-            // 
-            // pictureBox
-            // 
-            pictureBox.Location = new Point(4, 109);
-            pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(1128, 640);
-            pictureBox.SizeMode = PictureBoxSizeMode.CenterImage;
-            pictureBox.TabIndex = 1;
-            pictureBox.TabStop = false;
             // 
             // folderALabel
             // 
@@ -146,7 +153,6 @@
             Text = "Form1";
             mainPanel.ResumeLayout(false);
             mainPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox).EndInit();
             controlPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)folderAPanel).EndInit();
             folderAPanel.ResumeLayout(false);
@@ -162,9 +168,9 @@
         private Panel controlPanel;
         private SplitContainer folderAPanel;
         private Label folderALabel;
-        private PictureBox pictureBox;
         private Button folderAbtn;
         private Button folderBbtn;
         private Label folderBLabel;
+        private Panel imagePanel;
     }
 }

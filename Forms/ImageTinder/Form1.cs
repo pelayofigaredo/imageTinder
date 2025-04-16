@@ -1,6 +1,7 @@
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Text;
 
@@ -21,11 +22,26 @@ namespace ImageTinder
 
         bool[] markedForDeletion;
 
+        private Image currentImage;
+        private float zoom = 1.0f;
+        private Point panOffset = new Point(0, 0);
+        private Point lastMousePosition;
+        // Configurar eventos
+
+
         public Form1()
         {
             InitializeComponent();
 
-            //Liste for arrow keys
+            // Configurar eventos para el panel
+            imagePanel.Paint += ImagePanel_Paint;
+            imagePanel.MouseWheel += ImagePanel_MouseWheel;
+            imagePanel.MouseDown += ImagePanel_MouseDown;
+            imagePanel.MouseMove += ImagePanel_MouseMove;
+
+            // Habilitar el soporte para la rueda del ratón
+            imagePanel.Focus();
+            imagePanel.MouseEnter += (s, e) => imagePanel.Focus();
         }
 
         static bool DeleteImage(string source)
@@ -204,8 +220,64 @@ namespace ImageTinder
                 }
             }
 
-            pictureBox.ImageLocation = images[currentImageIndex];
+            // Cargar la imagen actual
+            currentImage = Image.FromFile(images[currentImageIndex]);
+
+            // Restablecer zoom y desplazamiento
+            zoom = 1.0f;
+            panOffset = new Point(0, 0);
+
+            // Redibujar el panel
+            imagePanel.Invalidate();
         }
 
+        private void ImagePanel_Paint(object sender, PaintEventArgs e)
+        {
+            if (currentImage != null)
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                // Aplicar transformaciones
+                e.Graphics.TranslateTransform(panOffset.X, panOffset.Y);
+                e.Graphics.ScaleTransform(zoom, zoom);
+
+                // Dibujar la imagen centrada
+                e.Graphics.DrawImage(currentImage, new Rectangle(0, 0, currentImage.Width, currentImage.Height));
+            }
+        }
+
+        private void ImagePanel_MouseWheel(object sender, MouseEventArgs e)
+        {
+            // Ajustar el nivel de zoom
+            float zoomFactor = e.Delta > 0 ? 1.1f : 0.9f;
+            zoom *= zoomFactor;
+
+            // Redibujar el panel
+            imagePanel.Invalidate();
+        }
+
+        private void ImagePanel_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                lastMousePosition = e.Location;
+            }
+        }
+
+        private void ImagePanel_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                // Calcular el desplazamiento
+                panOffset.X += e.X - lastMousePosition.X;
+                panOffset.Y += e.Y - lastMousePosition.Y;
+
+                lastMousePosition = e.Location;
+
+                // Redibujar el panel
+                imagePanel.Invalidate();
+            }
+        }
     }
 }

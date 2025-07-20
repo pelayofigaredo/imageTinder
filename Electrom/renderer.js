@@ -1,43 +1,54 @@
 const { ipcRenderer } = require('electron');
 
 const selectFolderButton = document.getElementById('select-folder');
-const imageList = document.getElementById('image-list');
+const selectDestinationFolderButton = document.getElementById('select-destination-folder');
 const imagePanel = document.getElementById('image-panel');
-const nextButton = document.createElement('button');
-const prevButton = document.createElement('button');
-
-nextButton.textContent = 'Siguiente';
-prevButton.textContent = 'Anterior';
-
-document.body.appendChild(prevButton);
-document.body.appendChild(nextButton);
+const nextButton = document.getElementById('next-button');
+const prevButton = document.getElementById('prev-button');
+const sourceFolderLabel = document.getElementById('source-folder-label');
+const destinationFolderLabel = document.getElementById('destination-folder-label');
 
 let images = [];
 let currentImageIndex = 0;
 let currentImagePath = '';
+let destinationFolder = null;
+let sourceFolder = null;
+
+// Etiquetas iniciales
+sourceFolderLabel.textContent = 'Selecciona la carpeta de origen.';
+destinationFolderLabel.textContent = 'Selecciona la carpeta de destino.';
 
 // Seleccionar carpeta
 selectFolderButton.addEventListener('click', () => {
   ipcRenderer.send('select-folder');
+
+});
+
+// Seleccionar carpeta de destino
+selectDestinationFolderButton.addEventListener('click', () => {
+  ipcRenderer.send('select-destination-folder');
+});
+
+ipcRenderer.on('destination-folder-selected', (event, folderPath) => {
+  destinationFolder = folderPath;
+  destinationFolderLabel.textContent = 'Destino: ' + folderPath;
 });
 
 // Recibir lista de imágenes desde el backend
-ipcRenderer.on('folder-selected', (event, imagePaths) => {
-  images = imagePaths;
-  imageList.innerHTML = '';
+const imageCountLabel = document.getElementById('image-count-label');
+ipcRenderer.on('folder-selected', (event, data) => {
+  images = data.images;
   currentImageIndex = 0;
-
-  // Mostrar lista de imágenes
-  images.forEach((image, index) => {
-    const li = document.createElement('li');
-    li.textContent = image;
-    li.addEventListener('click', () => loadImage(index));
-    imageList.appendChild(li);
-  });
-
+  sourceFolder = data.folderPath;
+  sourceFolderLabel.textContent = sourceFolder ? 'Origen: ' + sourceFolder : 'Selecciona la carpeta de origen.';
+  imageCountLabel.textContent = `Imágenes encontradas: ${images.length}`;
   // Cargar la primera imagen
   if (images.length > 0) {
-    loadImage(0);
+    currentImagePath = images[0];
+    loadImage(images[0]);
+  } else {
+    imagePanel.innerHTML = '<p>No hay imágenes.</p>';
+    currentImagePath = '';
   }
 });
 
@@ -55,6 +66,23 @@ prevButton.addEventListener('click', () => {
 ipcRenderer.on('image-loaded', (event, imagePath) => {
   currentImagePath = imagePath;
   loadImage(imagePath);
+});
+
+// Actualizar lista de imágenes después de mover/borrar
+ipcRenderer.on('image-list-updated', (event, updatedImages, newIndex) => {
+  images = updatedImages;
+  currentImageIndex = newIndex >= 0 ? newIndex : 0;
+  imageCountLabel.textContent = `Imágenes encontradas: ${images.length}`;
+  if (images.length > 0) {
+    loadImage(images[currentImageIndex]);
+  } else {
+    imagePanel.innerHTML = '<p>No hay imágenes.</p>';
+    currentImagePath = '';
+  }
+});
+
+ipcRenderer.on('error', (event, message) => {
+  alert(message);
 });
 
 // Cargar imagen en el panel central
@@ -105,3 +133,27 @@ function loadImage(imagePath) {
     img.style.cursor = 'grab';
   });
 }
+
+// Escuchar teclas de flecha para mover/borrar imágenes
+window.addEventListener('keydown', (e) => {
+  if (!sourceFolder || !destinationFolder) {
+    alert('Debes seleccionar la carpeta de origen y destino antes de usar las flechas.');
+    return;
+  }
+  if (!currentImagePath) {
+    console.log('No hay imagen cargada');
+    return;
+  }
+  if (e.key === 'ArrowRight') {
+    ipcRenderer.send('move-image-to-destination');
+    console.log('Enviando move-image-to-destination');
+  } else if (e.key === 'ArrowLeft') {
+    ipcRenderer.send('delete-image');
+    console.log('Enviando delete-image');
+  }
+});
+
+function pathSeparator() {
+  return window.navigator.platform.startsWith('Win') ? '\\' : '/';
+}
+

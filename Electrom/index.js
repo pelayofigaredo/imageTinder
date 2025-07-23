@@ -1,3 +1,22 @@
+function openHelpWindow() {
+  const helpWindow = new BrowserWindow({
+    width: 500,
+    height: 500,
+    title: "Ayuda",
+    modal: true,
+    parent: mainWindow,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    icon: path.join(__dirname, 'res/icon.ico'),
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    }
+  });
+  helpWindow.loadFile('help.html');
+}
+
 // Procesa la acción pendiente de lastImage (mover o borrar)
 function processLastImageAction(event) {
   if (!lastImage) return;
@@ -41,13 +60,34 @@ app.on('ready', () => {
     },
   });
 
+  // Crear menú personalizado solo con Ayuda
+  const { Menu } = require('electron');
+  const menuTemplate = [
+    {
+      label: 'Ayuda',
+      submenu: [
+        {
+          label: '¿Cómo funciona?',
+          click: () => {
+            openHelpWindow();
+          }
+        }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
+
   mainWindow.loadFile('index.html');
   mainWindow.on('closed', () => {
-    // Procesar la acción pendiente antes de cerrar, solo si la ventana y webContents existen
-    if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
-      processLastImageAction({ sender: mainWindow.webContents });
-    } else {
-      processLastImageAction({ sender: { send: () => {} } }); // Evita error si no existe webContents
+    try {
+      if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        processLastImageAction({ sender: mainWindow.webContents });
+      } else {
+        processLastImageAction({ sender: { send: () => {} } });
+      }
+    } catch (e) {
+      // Diosito no me mates, pero no me dejes sin procesar la última acción
     }
     mainWindow = null;
   });
@@ -128,7 +168,7 @@ ipcMain.on('move-image-to-destination', (event) => {
   }
 });
 
-// ...existing code...
+ipcMain.on('open-help', openHelpWindow);
 
 // Borrar imagen actual sin copiar
 

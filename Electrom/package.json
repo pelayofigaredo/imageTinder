@@ -1,15 +1,26 @@
 {
-  "name": "electrom",
+  "name": "ImageTinder",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "package-win": "electron-packager . ImageTinder --platform=win32 --arch=x64 --icon=res/icon.ico --overwrite"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "electron": "^35.1.5"
+    "electron": "^35.1.5",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.yayo.imageTinder",
+    "win": {
+      "icon": "res/icon.ico",
+         "target": [
+      "portable"
+    ]
+    }
   }
 }

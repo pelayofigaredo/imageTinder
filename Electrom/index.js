@@ -1,9 +1,31 @@
+// Procesa la acción pendiente de lastImage (mover o borrar)
+function processLastImageAction(event) {
+  if (!lastImage) return;
+  if (lastImage.action === 'move') {
+    try {
+      fs.copyFileSync(lastImage.imagePath, lastImage.destPath);
+      fs.unlinkSync(lastImage.imagePath);
+    } catch (err) {
+      event.sender.send('error', 'No se pudo completar el movimiento anterior: ' + err.message);
+    }
+  } else if (lastImage.action === 'delete') {
+    try {
+      fs.unlinkSync(lastImage.imagePath);
+    } catch (err) {
+      event.sender.send('error', 'No se pudo completar el borrado anterior: ' + err.message);
+    }
+  }
+  lastImage = null;
+}
+
+
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
 let mainWindow;
 let images = []; // Lista de imágenes en memoria
+let lastImage;
 let currentImageIndex = 0;
 let destinationFolder = null; // Carpeta de destino seleccionada
 
@@ -11,6 +33,8 @@ app.on('ready', () => {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    icon: path.join(__dirname, 'res/icon.ico'),
+    title: "Image Tinder",
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -18,7 +42,15 @@ app.on('ready', () => {
   });
 
   mainWindow.loadFile('index.html');
-  mainWindow.on('closed', () => (mainWindow = null));
+  mainWindow.on('closed', () => {
+    // Procesar la acción pendiente antes de cerrar, solo si la ventana y webContents existen
+    if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+      processLastImageAction({ sender: mainWindow.webContents });
+    } else {
+      processLastImageAction({ sender: { send: () => {} } }); // Evita error si no existe webContents
+    }
+    mainWindow = null;
+  });
 
 });
 
@@ -34,6 +66,8 @@ ipcMain.on('select-destination-folder', async (event) => {
 });
 
 ipcMain.on('select-folder', async (event) => {
+  // Procesar la acción pendiente antes de cambiar de carpeta
+  processLastImageAction(event);
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
   });
@@ -74,12 +108,18 @@ ipcMain.on('load-previous-image', (event) => {
 
 ipcMain.on('move-image-to-destination', (event) => {
   if (!destinationFolder || images.length === 0) return;
+  processLastImageAction(event);
   const imagePath = images[currentImageIndex];
   const fileName = path.basename(imagePath);
   const destPath = path.join(destinationFolder, fileName);
   try {
-    fs.copyFileSync(imagePath, destPath);
-    fs.unlinkSync(imagePath);
+    // No borrar ni copiar realmente, solo guardar referencia para rectificar
+    lastImage = {
+      action: 'move',
+      imagePath,
+      destPath,
+      index: currentImageIndex
+    };
     images.splice(currentImageIndex, 1);
     if (currentImageIndex >= images.length) currentImageIndex = images.length - 1;
     event.sender.send('image-list-updated', images, currentImageIndex);
@@ -94,15 +134,39 @@ ipcMain.on('move-image-to-destination', (event) => {
 
 ipcMain.on('delete-image', (event) => {
   if (images.length === 0) return;
+  processLastImageAction(event);
   const imagePath = images[currentImageIndex];
   try {
-    fs.unlinkSync(imagePath);
+    // No borrar realmente, solo guardar referencia para rectificar
+    lastImage = {
+      action: 'delete',
+      imagePath,
+      index: currentImageIndex
+    };
     images.splice(currentImageIndex, 1);
     if (currentImageIndex >= images.length) currentImageIndex = images.length - 1;
     event.sender.send('image-list-updated', images, currentImageIndex);
   } catch (err) {
     event.sender.send('error', 'No se pudo borrar la imagen: ' + err.message);
   }
+});
+// Rectificar el último cambio
+ipcMain.on('undo-last-action', (event) => {
+  if (!lastImage) {
+    event.sender.send('error', 'No hay acción para rectificar.');
+    return;
+  }
+  if (lastImage.action === 'move') {
+    // Solo restaurar la imagen en la lista, no copiar ni borrar archivos
+    images.splice(lastImage.index, 0, lastImage.imagePath);
+    currentImageIndex = lastImage.index;
+    event.sender.send('image-list-updated', images, currentImageIndex);
+  } else if (lastImage.action === 'delete') {
+    images.splice(lastImage.index, 0, lastImage.imagePath);
+    currentImageIndex = lastImage.index;
+    event.sender.send('image-list-updated', images, currentImageIndex);
+  }
+  lastImage = null;
 });
 
 // ...existing code...

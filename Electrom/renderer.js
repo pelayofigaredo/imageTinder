@@ -150,6 +150,9 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'ArrowLeft') {
     ipcRenderer.send('delete-image');
     console.log('Enviando delete-image');
+  } else if (e.key === 'ArrowDown') {
+    ipcRenderer.send('undo-last-action');
+    console.log('Enviando undo-last-action');
   }
 });
 

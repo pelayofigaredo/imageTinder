@@ -1,3 +1,9 @@
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+// Abrir el explorador de Windows en la imagen actual
+ipcMain.on('open-in-explorer', () => {
+  if (images.length === 0 || !images[currentImageIndex]) return;
+  shell.showItemInFolder(images[currentImageIndex]);
+});
 function openHelpWindow() {
   const helpWindow = new BrowserWindow({
     width: 500,
@@ -38,7 +44,7 @@ function processLastImageAction(event) {
 }
 
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+
 const fs = require('fs');
 const path = require('path');
 

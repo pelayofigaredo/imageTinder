@@ -153,6 +153,9 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'ArrowDown') {
     ipcRenderer.send('undo-last-action');
     console.log('Enviando undo-last-action');
+  } else if (e.code === 'Space') {
+    ipcRenderer.send('open-in-explorer');
+    console.log('Abriendo explorador en la imagen actual');
   }
 });
 

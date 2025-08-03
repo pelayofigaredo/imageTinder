@@ -1,50 +1,4 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
-// Abrir el explorador de Windows en la imagen actual
-ipcMain.on('open-in-explorer', () => {
-  if (images.length === 0 || !images[currentImageIndex]) return;
-  shell.showItemInFolder(images[currentImageIndex]);
-});
-function openHelpWindow() {
-  const helpWindow = new BrowserWindow({
-    width: 500,
-    height: 500,
-    title: "Ayuda",
-    modal: true,
-    parent: mainWindow,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    icon: path.join(__dirname, 'res/icon.ico'),
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    }
-  });
-  helpWindow.loadFile('help.html');
-}
-
-// Procesa la acción pendiente de lastImage (mover o borrar)
-function processLastImageAction(event) {
-  if (!lastImage) return;
-  if (lastImage.action === 'move') {
-    try {
-      fs.copyFileSync(lastImage.imagePath, lastImage.destPath);
-      fs.unlinkSync(lastImage.imagePath);
-    } catch (err) {
-      event.sender.send('error', 'No se pudo completar el movimiento anterior: ' + err.message);
-    }
-  } else if (lastImage.action === 'delete') {
-    try {
-      fs.unlinkSync(lastImage.imagePath);
-    } catch (err) {
-      event.sender.send('error', 'No se pudo completar el borrado anterior: ' + err.message);
-    }
-  }
-  lastImage = null;
-}
-
-
-
 const fs = require('fs');
 const path = require('path');
 
@@ -100,7 +54,46 @@ app.on('ready', () => {
 
 });
 
-// Selección de carpeta de destino
+function openHelpWindow() {
+  const helpWindow = new BrowserWindow({
+    width: 500,
+    height: 500,
+    title: "Ayuda",
+    modal: true,
+    parent: mainWindow,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    icon: path.join(__dirname, 'res/icon.ico'),
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    }
+  });
+  helpWindow.loadFile('help.html');
+}
+
+// Procesa la acción pendiente de lastImage (mover o borrar)
+function processLastImageAction(event) {
+  if (!lastImage) return;
+  if (lastImage.action === 'move') {
+    try {
+      fs.copyFileSync(lastImage.imagePath, lastImage.destPath);
+      fs.unlinkSync(lastImage.imagePath);
+    } catch (err) {
+      event.sender.send('error', 'No se pudo completar el movimiento anterior: ' + err.message);
+    }
+  } else if (lastImage.action === 'delete') {
+    try {
+      fs.unlinkSync(lastImage.imagePath);
+    } catch (err) {
+      event.sender.send('error', 'No se pudo completar el borrado anterior: ' + err.message);
+    }
+  }
+  lastImage = null;
+}
+
+// External Calls
 ipcMain.on('select-destination-folder', async (event) => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
@@ -150,7 +143,10 @@ ipcMain.on('load-previous-image', (event) => {
   }
 });
 
-// Copiar imagen actual a carpeta destino y borrar
+ipcMain.on('open-in-explorer', () => {
+  if (images.length === 0 || !images[currentImageIndex]) return;
+  shell.showItemInFolder(images[currentImageIndex]);
+});
 
 ipcMain.on('move-image-to-destination', (event) => {
   if (!destinationFolder || images.length === 0) return;
@@ -176,8 +172,6 @@ ipcMain.on('move-image-to-destination', (event) => {
 
 ipcMain.on('open-help', openHelpWindow);
 
-// Borrar imagen actual sin copiar
-
 ipcMain.on('delete-image', (event) => {
   if (images.length === 0) return;
   processLastImageAction(event);
@@ -196,7 +190,7 @@ ipcMain.on('delete-image', (event) => {
     event.sender.send('error', 'No se pudo borrar la imagen: ' + err.message);
   }
 });
-// Rectificar el último cambio
+
 ipcMain.on('undo-last-action', (event) => {
   if (!lastImage) {
     event.sender.send('error', 'No hay acción para rectificar.');
@@ -214,5 +208,3 @@ ipcMain.on('undo-last-action', (event) => {
   }
   lastImage = null;
 });
-
-// ...existing code...

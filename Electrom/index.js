@@ -1,12 +1,31 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
 let mainWindow;
+let helpWindow = null;
 let images = []; // Lista de imágenes en memoria
 let lastImage;
 let currentImageIndex = 0;
 let destinationFolder = null; // Carpeta de destino seleccionada
+let currentLang = 'es';
+
+// Crear menú personalizado con soporte de idioma
+function buildMenu(lang) {
+  return Menu.buildFromTemplate([
+    {
+      label: lang === 'en' ? 'Help' : 'Ayuda',
+      submenu: [
+        {
+          label: lang === 'en' ? 'How does it work?' : '¿Cómo funciona?',
+          click: () => {
+            openHelpWindow(lang);
+          }
+        }
+      ]
+    }
+  ]);
+}
 
 app.on('ready', () => {
   mainWindow = new BrowserWindow({
@@ -19,24 +38,14 @@ app.on('ready', () => {
       contextIsolation: false,
     },
   });
-
-  // Crear menú personalizado solo con Ayuda
-  const { Menu } = require('electron');
-  const menuTemplate = [
-    {
-      label: 'Ayuda',
-      submenu: [
-        {
-          label: '¿Cómo funciona?',
-          click: () => {
-            openHelpWindow();
-          }
-        }
-      ]
-    }
-  ];
-  const menu = Menu.buildFromTemplate(menuTemplate);
-  Menu.setApplicationMenu(menu);
+  
+  Menu.setApplicationMenu(buildMenu(currentLang));
+// Recibir idioma inicial del renderer al cargar la app
+ipcMain.on('init-lang', (event, lang) => {
+  currentLang = lang;
+  Menu.setApplicationMenu(buildMenu(currentLang));
+  if (mainWindow) mainWindow.focus();
+});
 
   mainWindow.loadFile('index.html');
   mainWindow.on('closed', () => {
@@ -54,11 +63,17 @@ app.on('ready', () => {
 
 });
 
-function openHelpWindow() {
-  const helpWindow = new BrowserWindow({
+function openHelpWindow(lang) {
+  if (helpWindow && !helpWindow.isDestroyed()) {
+    helpWindow.loadFile(lang === 'en' ? 'help_en.html' : 'help.html');
+    helpWindow.setTitle(lang === 'en' ? 'Help' : 'Ayuda');
+    helpWindow.focus();
+    return;
+  }
+  helpWindow = new BrowserWindow({
     width: 500,
     height: 500,
-    title: "Ayuda",
+    title: lang === 'en' ? 'Help' : 'Ayuda',
     modal: true,
     parent: mainWindow,
     resizable: false,
@@ -70,7 +85,9 @@ function openHelpWindow() {
       contextIsolation: false,
     }
   });
-  helpWindow.loadFile('help.html');
+  helpWindow.setMenu(null);
+  helpWindow.loadFile(lang === 'en' ? 'help_en.html' : 'help.html');
+  helpWindow.on('closed', () => { helpWindow = null; });
 }
 
 // Procesa la acción pendiente de lastImage (mover o borrar)
@@ -170,7 +187,19 @@ ipcMain.on('move-image-to-destination', (event) => {
   }
 });
 
-ipcMain.on('open-help', openHelpWindow);
+ipcMain.on('open-help', () => {
+  openHelpWindow(currentLang);
+});
+// Cambiar idioma del menú desde renderer
+ipcMain.on('set-lang', (event, lang) => {
+  currentLang = lang;
+  Menu.setApplicationMenu(buildMenu(currentLang));
+  if (mainWindow) mainWindow.focus();
+  if (helpWindow && !helpWindow.isDestroyed()) {
+    helpWindow.loadFile(currentLang === 'en' ? 'help_en.html' : 'help.html');
+    helpWindow.setTitle(currentLang === 'en' ? 'Help' : 'Ayuda');
+  }
+});
 
 ipcMain.on('delete-image', (event) => {
   if (images.length === 0) return;
@@ -208,3 +237,4 @@ ipcMain.on('undo-last-action', (event) => {
   }
   lastImage = null;
 });
+

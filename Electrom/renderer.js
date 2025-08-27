@@ -7,16 +7,63 @@ const nextButton = document.getElementById('next-button');
 const prevButton = document.getElementById('prev-button');
 const sourceFolderLabel = document.getElementById('source-folder-label');
 const destinationFolderLabel = document.getElementById('destination-folder-label');
+const langEsBtn = document.getElementById('lang-es');
+const langEnBtn = document.getElementById('lang-en');
+const imageCountLabel = document.getElementById('image-count-label');
 
 let images = [];
 let currentImageIndex = 0;
 let currentImagePath = '';
 let destinationFolder = null;
 let sourceFolder = null;
+let currentLang = localStorage.getItem('lang') || 'es';
+
+function t(key, ...args) {
+  const value = window.translations[currentLang][key];
+  return typeof value === 'function' ? value(...args) : value;
+}
+
+function updateTexts() {
+  selectFolderButton.textContent = t('selectFolder');
+  selectDestinationFolderButton.textContent = t('selectDestFolder');
+  prevButton.textContent = t('prev');
+  nextButton.textContent = t('next');
+  // Si ya hay paths seleccionados, mantenerlos, si no, poner texto por defecto
+  sourceFolderLabel.textContent = sourceFolder ? t('source') + ': ' + sourceFolder : t('selectFolder');
+  destinationFolderLabel.textContent = destinationFolder ? t('destination') + ': ' + destinationFolder : t('selectDestFolder');
+  // El label de cantidad de imágenes se actualiza en los handlers
+}
+
+// Botones de idioma
+langEsBtn.addEventListener('click', () => {
+  if (currentLang !== 'es') {
+    currentLang = 'es';
+    localStorage.setItem('lang', currentLang);
+    updateTexts();
+    if (typeof images !== 'undefined') {
+      imageCountLabel.textContent = t('imagesFound', images.length);
+    }
+    console.log('[renderer] Enviando set-lang:', currentLang);
+    ipcRenderer.send('set-lang', currentLang);
+  }
+});
+langEnBtn.addEventListener('click', () => {
+  if (currentLang !== 'en') {
+    currentLang = 'en';
+    localStorage.setItem('lang', currentLang);
+    updateTexts();
+    if (typeof images !== 'undefined') {
+      imageCountLabel.textContent = t('imagesFound', images.length);
+    }
+    console.log('[renderer] Enviando set-lang:', currentLang);
+    ipcRenderer.send('set-lang', currentLang);
+  }
+});
 
 // Etiquetas iniciales
-sourceFolderLabel.textContent = 'Selecciona la carpeta de origen.';
-destinationFolderLabel.textContent = 'Selecciona la carpeta de destino.';
+updateTexts();
+// Notificar idioma inicial al main process
+ipcRenderer.send('init-lang', currentLang);
 
 // Seleccionar carpeta
 selectFolderButton.addEventListener('click', () => {
@@ -31,17 +78,16 @@ selectDestinationFolderButton.addEventListener('click', () => {
 
 ipcRenderer.on('destination-folder-selected', (event, folderPath) => {
   destinationFolder = folderPath;
-  destinationFolderLabel.textContent = 'Destino: ' + folderPath;
+  updateTexts();
 });
 
 // Recibir lista de imágenes desde el backend
-const imageCountLabel = document.getElementById('image-count-label');
 ipcRenderer.on('folder-selected', (event, data) => {
   images = data.images;
   currentImageIndex = 0;
   sourceFolder = data.folderPath;
-  sourceFolderLabel.textContent = sourceFolder ? 'Origen: ' + sourceFolder : 'Selecciona la carpeta de origen.';
-  imageCountLabel.textContent = `Imágenes encontradas: ${images.length}`;
+  updateTexts();
+  imageCountLabel.textContent = t('imagesFound', images.length);
   // Cargar la primera imagen
   if (images.length > 0) {
     currentImagePath = images[0];
@@ -72,17 +118,17 @@ ipcRenderer.on('image-loaded', (event, imagePath) => {
 ipcRenderer.on('image-list-updated', (event, updatedImages, newIndex) => {
   images = updatedImages;
   currentImageIndex = newIndex >= 0 ? newIndex : 0;
-  imageCountLabel.textContent = `Imágenes encontradas: ${images.length}`;
+  imageCountLabel.textContent = t('imagesFound', images.length);
   if (images.length > 0) {
     loadImage(images[currentImageIndex]);
   } else {
-    imagePanel.innerHTML = '<p>No hay imágenes.</p>';
+    imagePanel.innerHTML = '<p>' + (currentLang === 'es' ? 'No hay imágenes.' : 'No images.') + '</p>';
     currentImagePath = '';
   }
 });
 
 ipcRenderer.on('error', (event, message) => {
-  alert(message);
+  alert((window.translations[currentLang].error || 'Error') + ': ' + message);
 });
 
 // Cargar imagen en el panel central
@@ -137,11 +183,11 @@ function loadImage(imagePath) {
 // Escuchar teclas de flecha para mover/borrar imágenes
 window.addEventListener('keydown', (e) => {
   if (!sourceFolder || !destinationFolder) {
-    alert('Debes seleccionar la carpeta de origen y destino antes de usar las flechas.');
+    alert(t('mustSelectFolders'));
     return;
   }
   if (!currentImagePath) {
-    console.log('No hay imagen cargada');
+    console.log(t('noImageLoaded'));
     return;
   }
   if (e.key === 'ArrowRight') {
